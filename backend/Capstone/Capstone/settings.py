@@ -54,9 +54,9 @@ INSTALLED_APPS = [
     'crispy_forms',
     'webpack_loader',
 
-    'Capstone.posts',    # Posts app
-    'Capstone.users',     # Users app
-    'Capstone.iv',         # image and videos app
+    'backend.Capstone.posts',    # Posts app
+    'backend.Capstone.users',     # Users app
+    'backend.Capstone.iv',         # image and videos app
 ]
 
 MIDDLEWARE = [
