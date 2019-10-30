@@ -5,4 +5,4 @@ class PostsConfig(AppConfig):
     name = 'posts'
 
     def ready(self):
-        import posts.signals
+        import backend.Capstone.posts.signals

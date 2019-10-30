@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.utils.text import slugify
 
 from core.utils import generate_random_string
-from posts.models import Post
+from backend.Capstone.posts.models import Post
 
 ###############################
 # Function manaually assigns
