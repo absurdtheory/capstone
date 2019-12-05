@@ -1,58 +1,41 @@
 <template>
-  <div class="container mt-2">
-    <h1 class="mb-3">Post Something</h1>
+  <v-container>
     <v-form @submit.prevent="onSubmit">
-      <v-card>
-        <v-card-text>
-          <v-layout row wrap justify-space-around>
-            <v-flex xs8 sm9 text-xs-center>
-              <v-text-field
-                v-model="post_body"
-                class="form-control"
-                placeholder="What do you want to post?"
-                rows="3"
-              ></v-text-field>
-              <p v-if="error" class="grey--text">{{ error }}</p>
-              <p v-else class="mb-0">
-                <v-text-field
-                  v-model="speech"
-                  v-if="sentences.length > 0"
-                  v-bind:key="sentences"
-                  :value="sentences"
-                >
-                </v-text-field>
-                <span v-for="sentence in sentences" v-bind:key="sentence"
-                  >{{ sentence }}
-                </span>
-                <span>{{ runtimeTranscription }}</span>
-              </p>
-            </v-flex>
-            <v-flex xs2 sm1 text-xs-center>
-              <v-btn
-                dark
-                @click.stop="
-                  toggle ? endSpeechRecognition() : startSpeechRecognition()
-                "
-                icon
-                :color="!toggle ? 'grey' : speaking ? 'red' : 'red darken-3'"
-                :class="{ 'animated infinite pulse': toggle }"
-              >
-                <v-icon>{{ toggle ? "mic_off" : "mic" }}</v-icon>
-              </v-btn>
-            </v-flex>
-          </v-layout>
-        </v-card-text>
+      <v-card class="mx-auto grey lighten-5" flat max-width="800">
+        <v-card-title class="headline justify-center">
+          What would you like to post?
+        </v-card-title>
+
+        <v-row no-gutters>
+          <v-col>
+            <v-textarea
+              append
+              auto-grow
+              v-model="post_body"
+              placeholder="What do you want to post?"
+            >
+              <template v-slot:append>
+                <speechToText
+                  :text.sync="post_body"
+                  @speechend="speechEnd"
+                ></speechToText>
+              </template>
+            </v-textarea>
+          </v-col>
+        </v-row>
+        <v-card-actions>
+          <input
+            type="file"
+            id="file"
+            ref="file"
+            v-on:change="onFileChange()"
+          />
+          <v-spacer />
+          <v-btn type="submit">Publish</v-btn>
+        </v-card-actions>
       </v-card>
-
-      <input
-        type="file"
-        id="file"
-        ref="file"
-        v-on:change="onFileChange()"
-      /><br />
-      <v-btn type="submit">Publish</v-btn>
     </v-form>
-
+    
     <video id="webcam-stream" autoplay muted style="display:none"></video>
     <button id="screenshot-button" @click="takePicture" style="display:none">
       Take Picture
@@ -64,13 +47,9 @@
     <canvas style="display:none;"></canvas>
     <video id="playback-video" style="display:none" controls></video>
     <button id="save-media-button" @click="saveMedia" style="display:none">
-       Add Media To Post
+      Add Media To Post
     </button>
-    <button
-      id="discard-media-button"
-      @click="discardMedia"
-      style="display:none"
-    >
+    <button id="discard-media-button" @click="discardMedia" style="display:none">
       Discard Media
     </button>
     <button id="stop-recording-button" style="display:none">
@@ -91,16 +70,20 @@
         }}</v-icon>
       </v-btn>
     </v-flex>
-
-    <p v-if="error">{{ error }}</p>
-  </div>
+    
+    <v-snackbar color="red" multi-line v-model="snackbar">
+      {{ error }}
+      <v-btn text @click="snackbar = false">
+        Close
+      </v-btn>
+    </v-snackbar>
+  </v-container>
 </template>
+
 <script>
-let SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = SpeechRecognition ? new SpeechRecognition() : false;
 import { apiService } from "@/common/api.service.js";
 import { imgurService } from "@/common/api.service.js";
+import { SpeechToText } from "@/components/Application/Speech";
 
 export default {
   name: "PostEditor",
@@ -110,103 +93,51 @@ export default {
       type: String,
       default: "en-US"
     },
-    text: {
-      type: [String, null],
-      required: true
-    },
     slug: {
       type: String,
       required: false
     }
   },
+  components: {
+    SpeechToText
+  },
   data() {
     return {
       error: null,
+      mediaToggle: false,
       speaking: false,
       toggle: false,
       runtimeTranscription: "",
-      sentences: [],
+      sentences: null,
       speech: null,
-      post_body: null,
+      post_body: "",
       file: null,
+      text: "",
+      snackbar: false,
       url: null,
       video: null,
-      mediaToggle: false
     };
   },
   methods: {
-    checkCompatibility() {
-      if (!recognition) {
-        this.error =
-          "Speech Recognition is not available on this browser. Please use Chrome or Firefox";
-      }
-    },
-    endSpeechRecognition() {
-      recognition.stop();
-      this.toggle = false;
-      this.text = this.sentences.join(" ");
-      this.speech = this.sentences.join(" ");
-      this.$emit("speechend", {
-        sentences: this.sentences,
-        text: this.sentences.join(" ")
-      });
-    },
-    startSpeechRecognition() {
-      if (!recognition) {
-        this.error =
-          "Speech Recognition is not available on this browser. Please use Chrome";
-        return false;
-      }
-      this.toggle = true;
-      recognition.lang = this.lang;
-      recognition.interimResults = true;
-
-      recognition.addEventListener("speechstart", () => {
-        this.speaking = true;
-      });
-
-      recognition.addEventListener("speechend", () => {
-        this.speaking = false;
-      });
-
-      recognition.addEventListener("result", event => {
-        const text = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join("");
-        this.runtimeTranscription = text;
-      });
-
-      recognition.addEventListener("end", () => {
-        if (this.runtimeTranscription !== "") {
-          this.sentences.push(
-            this.capitalizeFirstLetter(this.runtimeTranscription)
-          );
-          this.$emit(
-            "update:text",
-            `${this.text}${this.sentences.slice(-1)[0]}. `
-          );
-        }
-        this.runtimeTranscription = "";
-        recognition.stop();
-        if (this.toggle) {
-          // keep it going.
-          recognition.start();
-        }
-      });
-      recognition.start();
-    },
-    capitalizeFirstLetter(string) {
-      return string.charAt(0).toUpperCase() + string.slice(1);
+    speechEnd({ sentences, post_body }) {
+      // eslint-disable-next-line no-console
+      console.log("text", post_body);
+      // eslint-disable-next-line no-console
+      console.log("sentences", sentences);
+      this.sentences = sentences;
     },
     onFileChange() {
-      this.file = this.$refs.file.files[0];
+      if((this.$refs.file.files[0].type.includes("image") && (this.$refs.file.files[0].type.includes("jpeg") || this.$refs.file.files[0].type.includes("gif") || this.$refs.file.files[0].type.includes("tiff") || this.$refs.file.files[0].type.includes("apng") || this.$refs.file.files[0].type.includes("png"))) || (this.$refs.file.files[0].type.includes("video"))){
+        this.file = this.$refs.file.files[0];
+      }
+      else{
+        this.error = "File type not supported. File will not be uploaded. Please choose another file.";
+        this.snackbar = true;
+      }
     },
     onSubmit() {
-      // eslint-disable-next-line no-console
-      console.log(this.file)
       var speech = this.speech;
-
+      
       // Tell the REST API to create or update a Post Instance
       if (
         this.post_body &&
@@ -215,16 +146,17 @@ export default {
       ) {
         this.error =
           "Please use text-to-speech or type your message, not both.";
+        this.snackbar = true;
       } else if (!this.post_body && (speech && speech.length < 1)) {
         this.error = "You can't send an empty post!";
+        this.snackbar = true;
       } else if (
         (this.post_body && this.post_body.length > 240) ||
         (speech && speech.length > 240)
       ) {
         this.error = "Ensure this field has no more than 240 characters!";
-      } else if (!this.file) {
-        this.error = "Please upload a picture or video to go with your post";
-      } else if (this.file.type.includes("video")) {
+        this.snackbar = true;
+      } else if (this.file && this.file.type && this.file.type.includes("video")) {
 
         let endpoint = "/upload/video/";
         let method = "POST";
@@ -249,11 +181,10 @@ export default {
             });
           });
         });
-
       } else {
         let endpoint = "/api/posts/";
         let method = "POST";
-
+        
         var new_content;
 
         if (!this.post_body) {
@@ -261,45 +192,51 @@ export default {
         } else {
           new_content = this.post_body;
         }
-
         if (this.slug !== undefined) {
           endpoint += `${this.slug}/`;
-          method = "PUT";
+          method = "PATCH";
         }
-
-        let imgur_data = new FormData();
-        var file_type;
-        if (this.file instanceof File){
-        	file_type = "file";
+        if (this.file != null){
+            let imgur_data = new FormData();
+	        var file_type;
+	        if (this.file instanceof File) {
+	          file_type = "file";
+	        } else {
+	          file_type = "base64";
+	        }
+	        imgur_data.append("image", this.file);
+	        imgur_data.append("title", new_content);
+	        imgur_data.append("type", file_type);
+	        let data = new FormData();
+	        data.append("content", new_content);
+	        data.append("file", this.file);
+	        imgurService(imgur_data).then(imgur_data => {
+	          // eslint-disable-next-line no-console
+	          console.log(imgur_data);
+	          // eslint-disable-next-line no-console
+	          console.log(imgur_data["data"]["data"]["link"]);
+	          data.append("url", imgur_data["data"]["data"]["link"]);
+	          // eslint-disable-next-line no-console
+	          console.log(data.get("url"));
+	          apiService(endpoint, method, data).then(post_data => {
+	            this.$router.push({
+	              name: "post",
+	              params: { slug: post_data.data.slug }
+	            });
+	          });
+	        });
         }
         else{
-        	file_type = "base64"
-        }
-        imgur_data.append("image", this.file);
-        imgur_data.append("title", new_content);
-        imgur_data.append("type", file_type);
-
-        let data = new FormData();
-        data.append("content", new_content);
-        data.append("file", this.file);
-
-        imgurService(imgur_data).then(imgur_data => {
-          // eslint-disable-next-line no-console
-          console.log(imgur_data);
-          // eslint-disable-next-line no-console
-          console.log(imgur_data["data"]["data"]["link"]);
-          data.append("url", imgur_data["data"]["data"]["link"]);
-
-          // eslint-disable-next-line no-console
-          console.log(data.get("url"));
-
-          apiService(endpoint, method, data).then(post_data => {
-            this.$router.push({
+           let data = new FormData();
+           data.append("content", new_content);
+       	   apiService(endpoint, method, data).then(post_data => {
+           this.$router.push({
               name: "post",
               params: { slug: post_data.data.slug }
             });
           });
-        });
+        }
+
       }
     },
     checkMediaCompatibility() {
@@ -418,6 +355,7 @@ export default {
       saveMediaButton.style.display = "none";
       discardMediaButton.style.display = "none";
       downloadLink.style.display = "none";
+
     }
   },
   async beforeRouteEnter(to, from, next) {
@@ -430,7 +368,6 @@ export default {
     }
   },
   mounted() {
-    this.checkCompatibility();
     this.checkMediaCompatibility();
   }
 };

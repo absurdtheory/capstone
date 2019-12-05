@@ -57,4 +57,3 @@ class PostSerializer(serializers.ModelSerializer):
     def get_user_has_liked(self, instance):
         request = self.context.get("request")
         return instance.post_likers.filter(pk=request.user.pk).exists()
-
