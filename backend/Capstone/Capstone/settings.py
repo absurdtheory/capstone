@@ -121,7 +121,7 @@ DATABASES = {
 
     'default': {
         'ENGINE': 'djongo',
-        'NAME': 'grandpatest',
+        'NAME': 'deploygrandpa',
         'HOST': 'mongodb+srv://sample_user:467grandpapassword@cluster0-sjdfw.mongodb.net/test?retryWrites=true&w=majority',
         'USER': 'sample_user',
         'PASSWORD': '467grandpapassword',
@@ -215,7 +215,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "assets"),
-    # os.path.join(BASE_DIR, "../../frontend/dist"),
+   # os.path.join(BASE_DIR, "../../frontend/dist"),
 ]
 WEBPACK_LOADER = {
     'DEFAULT': {
