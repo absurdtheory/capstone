@@ -147,8 +147,8 @@ export default {
         this.error =
           "Please use text-to-speech or type your message, not both.";
         this.snackbar = true;
-      } else if (!this.post_body && (speech && speech.length < 1)) {
-        this.error = "You can't send an empty post!";
+      } else if (this.post_body.length < 1) {
+        this.error = "Add a message/description to your post."
         this.snackbar = true;
       } else if (
         (this.post_body && this.post_body.length > 240) ||
